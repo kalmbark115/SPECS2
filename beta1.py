@@ -1,3 +1,4 @@
+
 import streamlit as st
 import folium
 from streamlit_folium import st_folium
@@ -22,6 +23,8 @@ if "map_center" not in st.session_state: st.session_state.map_center = [24.7136,
 if "map_zoom" not in st.session_state: st.session_state.map_zoom = 18
 if "lang" not in st.session_state: st.session_state.lang = "en"
 if "time_view" not in st.session_state: st.session_state.time_view = "Annual"
+
+if "last_click" not in st.session_state: st.session_state.last_click = None
 
 if "show_audit" not in st.session_state: st.session_state.show_audit = False
 if "show_service" not in st.session_state: st.session_state.show_service = False
@@ -84,7 +87,7 @@ t = {
 loc = t[st.session_state.lang]
 
 # ==========================================
-# 3. TYPOGRAPHY ENGINE (Dynamic Font Scaling)
+# 3. TYPOGRAPHY ENGINE
 # ==========================================
 is_ar = st.session_state.lang == "ar"
 
@@ -118,57 +121,41 @@ def calculate_area(pts):
     return 0.5 * np.abs(np.dot(lats, np.roll(lngs, 1)) - np.dot(lngs, np.roll(lats, 1)))
 
 # ==========================================
-# 4. GLOBAL BASE CSS
+# 4. GLOBAL BASE CSS (Locked)
 # ==========================================
 st.markdown("""
 <style>
-    /* BASE THEME & MAP */
     :root { color-scheme: dark; }
     body, .stApp, [data-testid="stAppViewContainer"] { background-color: #0A0A0A !important; color: white !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; overflow: hidden; }
     iframe { position: fixed !important; top: 0; left: 0; width: 100vw !important; height: 100vh !important; z-index: 0 !important; border: none !important; }
     div[data-testid="stTooltipContent"] { display: none !important; opacity: 0 !important; }
 
-    /* GLOBAL BUTTON OUTLINE FIX */
     .stButton > button { outline: none !important; }
     .stButton > button:focus { outline: none !important; box-shadow: none !important; color: inherit !important; }
 
-    /* HEADER & LOGO */
     .solid-header { position: fixed; top: 0; left: 0; right: 0; height: 90px; background-color: #0A0A0A !important; border-bottom: 2px solid #D4AF37; z-index: 999; display: flex; justify-content: flex-end; align-items: center; padding-right: 40px; box-shadow: 0px 4px 15px rgba(0,0,0,0.9); pointer-events: none; }
     .logo-container { pointer-events: auto; text-align: right; }
     .logo-top { color: #D4AF37 !important; font-family: 'Times New Roman', serif !important; font-weight: 300 !important; letter-spacing: 6px !important; font-size: 2.2rem !important; margin: 0 0 -4px 0 !important; line-height: 1 !important; }
     .logo-bottom { color: #FFFFFF !important; font-family: 'Times New Roman', serif !important; font-weight: 300 !important; letter-spacing: 4px !important; font-size: 1.4rem !important; margin: 0 !important; line-height: 1 !important; }
 
-    /* =========================================================
-       1. HEADER NAV SHIELD (Locked perfectly)
-       ========================================================= */
-       
     div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) {
-        position: fixed !important;
-        top: 22px !important;
-        left: 30px !important;
-        right: 0px !important;
-        padding-right: 320px !important;
-        z-index: 99999 !important;
-        pointer-events: none !important;
+        position: fixed !important; top: 22px !important; left: 30px !important; right: 0px !important; padding-right: 280px !important; z-index: 99999 !important; pointer-events: none !important;
     }
    
     span#header-nav-id { display: none !important; }
     div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button { pointer-events: auto !important; }
    
     div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"] {
-        background: transparent !important; color: white !important; border: none !important; box-shadow: none !important; font-weight: bold !important; font-size: var(--f-btn) !important; height: 45px !important; margin: 0 !important; padding: 0 25px !important; width: 100% !important; transition: 0.2s !important; display: flex !important; align-items: center !important; justify-content: center !important; outline: none !important; white-space: nowrap !important; min-width: max-content !important;
+        background: transparent !important; color: white !important; border: none !important; box-shadow: none !important; font-weight: bold !important; font-size: var(--f-btn) !important; height: 45px !important; margin: 0 !important; padding: 0 15px !important; width: 100% !important; transition: 0.2s !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; outline: none !important; white-space: nowrap !important; gap: 8px !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"] p { margin: 0 !important; line-height: 1 !important; color: white !important; white-space: nowrap !important; }
+    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"] p { margin: 0 !important; line-height: 1 !important; color: white !important; white-space: nowrap !important; display: inline-block !important; }
     div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"]:hover { color: #D4AF37 !important; text-shadow: 0 0 10px rgba(212,175,55,0.6); transform: translateY(-2px); }
    
     div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) div[data-testid="column"]:nth-child(1) button[kind="secondary"] {
-        background: rgba(10,10,10,0.5) !important; color: #D4AF37 !important; border: 2px solid #D4AF37 !important; border-radius: 12px !important; padding: 0 25px !important; width: 100% !important;
+        background: rgba(10,10,10,0.5) !important; color: #D4AF37 !important; border: 2px solid #D4AF37 !important; border-radius: 12px !important; padding: 0 20px !important; width: 100% !important;
     }
 
-    /* =========================================================
-       2. FLOATING BUBBLES CSS
-       ========================================================= */
     [data-testid="stSidebar"], [data-testid="collapsedControl"], header[data-testid="stHeader"] { display: none !important; }
 
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#floating-controls) {
@@ -192,7 +179,6 @@ st.markdown("""
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#floating-controls) button[kind="primary"]:hover { background: #D4AF37 !important; color: #0A0A0A !important; box-shadow: 0 0 20px rgba(212, 175, 55, 0.8) !important; transform: translateY(-2px); border-color: #D4AF37 !important; }
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#floating-controls) button[kind="primary"]:active { transform: scale(0.95) !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.5) !important; }
 
-    /* SMART ALERTS & HUD */
     .smart-alert { position: fixed; top: 110px; left: 50%; transform: translateX(-50%); background: rgba(200, 50, 50, 0.95); border: 1px solid #ff4b4b; color: white; padding: 12px 25px; border-radius: 8px; text-align: center; font-weight: bold; z-index: 999999; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
     .results-hud { position: fixed; bottom: 25px; left: 55%; transform: translateX(-50%); z-index: 9999; display: flex; gap: 15px; flex-wrap: nowrap; }
     .hud-card { background-color: rgba(10, 10, 10, 0.85); border: 1px solid rgba(212, 175, 55, 0.5); border-radius: 18px; min-width: 140px; height: 100px; box-shadow: 0px 5px 15px rgba(0,0,0,0.5); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 0 10px; }
@@ -208,8 +194,7 @@ st.markdown("""
 # 5. PAGE ARCHITECTURE
 # ==========================================
 
-# A. Header Navigation
-nav_cols = st.columns([1.2, 1.2, 4.5, 1.3, 1.3, 1.2])
+nav_cols = st.columns([1.5, 1.5, 2.0, 1.5, 1.5, 1.5])
 nav_cols[0].markdown("<span id='header-nav-id'></span>", unsafe_allow_html=True)
 nav_cols[0].button(loc["btn_lang"], on_click=toggle_language, type="secondary", use_container_width=True)
 view_label = loc['monthly'] if st.session_state.time_view == 'Annual' else loc['annual']
@@ -218,7 +203,6 @@ nav_cols[3].button(f"🛠️ {loc['service']}", on_click=open_service, type="sec
 nav_cols[4].button(f"📊 {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True)
 nav_cols[5].button(f"🏠 {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True)
 
-# B. Floating Bubbles Configuration
 with st.container():
     st.markdown("<div id='floating-controls'></div>", unsafe_allow_html=True)
     load_choice = st.selectbox(loc["load"], loc["opt_loads"])
@@ -233,35 +217,45 @@ if st.session_state.show_alert:
     st.markdown(f'<div class="smart-alert">{loc["alert"]}</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 6. THE MAP ENGINE & MATH HUD (RESTORED THE 5TH BUBBLE)
+# 6. THE MAP ENGINE
 # ==========================================
+
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom, tiles='https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attr='Google', zoom_control=True, max_zoom=22)
 
+fg = folium.FeatureGroup(name="Roof Markers")
+
 if st.session_state.points:
-    for p in st.session_state.points: folium.CircleMarker(p, radius=5, color='#D4AF37', fill=True, fill_color='white').add_to(m)
-    if len(st.session_state.points) >= 3: folium.Polygon(st.session_state.points, color="#D4AF37", fill=True, fill_opacity=0.3, weight=3).add_to(m)
+    for p in st.session_state.points:
+        folium.CircleMarker(p, radius=5, color='#D4AF37', fill=True, fill_color='white').add_to(fg)
+    if len(st.session_state.points) >= 3:
+        folium.Polygon(st.session_state.points, color="#D4AF37", fill=True, fill_opacity=0.3, weight=3).add_to(fg)
 
-map_data = st_folium(m, height=1000, width="100%", key="main_map", returned_objects=["last_clicked", "center", "zoom"])
+map_data = st_folium(
+    m,
+    height=1000,
+    width="100%",
+    key="main_map",
+    feature_group_to_add=fg,
+    returned_objects=["last_clicked"]
+)
 
-if map_data:
-    if map_data.get("zoom"): st.session_state.map_zoom = map_data["zoom"]
-    if map_data.get("center"): st.session_state.map_center = [map_data["center"]["lat"], map_data["center"]["lng"]]
-    if map_data.get("last_clicked"):
-        new_p = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
-        if not st.session_state.points or new_p != st.session_state.points[-1]:
-            st.session_state.points.append(new_p)
-            st.session_state.area = calculate_area(st.session_state.points)
-            st.rerun()
+if map_data and map_data.get("last_clicked"):
+    new_p = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
+    if st.session_state.last_click != new_p:  
+        st.session_state.last_click = new_p  
+        st.session_state.points.append(new_p)
+        st.session_state.area = calculate_area(st.session_state.points)
+        st.rerun()
 
 if st.session_state.area > 0:
     area = st.session_state.area
     units = int(area / 2.3)
     kwp = (units * panel_w) / 1000.0
     consumption_map = {"Small Villa": 45000, "فيلا صغيرة": 45000, "Standard Villa": 75000, "فيلا قياسية": 75000, "Large Estate": 120000, "قصر صغير": 120000, "Palace": 200000, "قصر كبير": 200000}
+   
     annual_consumption = consumption_map[load_choice]
     annual_generation = kwp * 2200 * m_multiplier
    
-    # THE MATH RESTORE: Separating direct vs exported
     direct_kwh = min(annual_generation, annual_consumption)
     export_kwh = max(0, annual_generation - annual_consumption)
    
@@ -273,12 +267,10 @@ if st.session_state.area > 0:
     payback = install_cost / total_benefit_ann if total_benefit_ann > 0 else 0
     divider = 1 if st.session_state.time_view == "Annual" else 12
 
-    # Dynamic labels based on time view
     lbl_dir = loc["direct_a"] if st.session_state.time_view == "Annual" else loc["direct_m"]
     lbl_exp = loc["export_a"] if st.session_state.time_view == "Annual" else loc["export_m"]
     lbl_tot = loc["total_a"] if st.session_state.time_view == "Annual" else loc["total_m"]
 
-    # THE BUBBLE RESTORE: 5 distinct bubbles rendering flawlessly!
     st.markdown(f"""
     <div class="results-hud">
         <div class="hud-card"><div class="hud-label">{loc["area"]}</div><div class="hud-value">{area:.1f} m²</div></div>
@@ -291,7 +283,7 @@ if st.session_state.area > 0:
 
 
 # ==========================================
-# 7. MODAL ENGINE CSS (Locked and Untouched)
+# 7. MODAL ENGINE CSS (Locked)
 # ==========================================
 modal_css = """
 <style>
@@ -370,8 +362,9 @@ if st.session_state.show_audit and st.session_state.area > 0:
         st.button("✖", key="aud_x", type="secondary", on_click=close_all_popups)
            
         st.markdown(f"<div style='color: white; font-size: {f_title}; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-top: -10px; padding-right: 40px;'>{loc['audit_title']}</div>", unsafe_allow_html=True)
-        st.markdown("<hr style='border-color: #D4AF37; opacity: 0.3; margin-top: 10px; margin-bottom: 25px;'>", unsafe_allow_html=True)
-        st.markdown(f"<div style='display:flex; justify-content:space-between; margin-top: 10px; padding: 0 10px;'><div><div style='color:#aaa; font-size:{f_lbl};'>{loc['cost']}</div><div style='color:white; font-size:{f_big}; font-weight:bold;'>{install_cost:,.0f} SAR</div></div><div><div style='color:#aaa; font-size:{f_lbl};'>{loc['payback']}</div><div style='color:white; font-size:{f_big}; font-weight:bold;'>{payback:.1f} {loc['years']}</div></div></div>", unsafe_allow_html=True)
+       
+        # THE FIX: Added the 'f' right here!
+        st.markdown(f"<hr style='border-color: #D4AF37; opacity: 0.3; margin: 15px 0;'><div style='display:flex; justify-content:space-between;'><div><div style='color:#aaa; font-size:{f_lbl};'>{loc['cost']}</div><div style='color:white; font-size:{f_big}; font-weight:bold;'>{install_cost:,.0f} SAR</div></div><div><div style='color:#aaa; font-size:{f_lbl};'>{loc['payback']}</div><div style='color:white; font-size:{f_big}; font-weight:bold;'>{payback:.1f} {loc['years']}</div></div></div>", unsafe_allow_html=True)
 
 if st.session_state.show_service:
     st.markdown(modal_css, unsafe_allow_html=True)
@@ -387,7 +380,11 @@ if st.session_state.show_service:
             st.button("✖", key="list_x", type="secondary", on_click=close_all_popups)
             st.markdown(f"<div style='color: white; font-size: {f_title}; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-top: -10px; margin-bottom: 20px; padding-right: 40px;'>{loc['service_title']}</div>", unsafe_allow_html=True)
 
-            my_lat, my_lon = st.session_state.map_center
+            if st.session_state.points:
+                my_lat, my_lon = st.session_state.points[0]
+            else:
+                my_lat, my_lon = st.session_state.map_center
+               
             d_acwa = haversine(my_lat, my_lon, 24.72, 46.70)
             d_desert = haversine(my_lat, my_lon, 24.68, 46.65)
             d_alfanar = haversine(my_lat, my_lon, 24.75, 46.75)
