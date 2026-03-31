@@ -37,14 +37,29 @@ def toggle_time(): st.session_state.time_view = "Monthly" if st.session_state.ti
 
 def toggle_audit():
     if st.session_state.area > 0:
-        st.session_state.show_audit = not st.session_state.show_audit; st.session_state.show_service = False; st.session_state.show_alert = False
-    else: st.session_state.show_alert = True; st.session_state.show_service = False
+        if st.session_state.show_audit:
+            st.session_state.show_audit = False
+        else:
+            st.session_state.show_audit = True
+            st.session_state.show_service = False
+            st.session_state.show_alert = False
+    else:
+        st.session_state.show_alert = True
+        st.session_state.show_service = False
 
 def open_service():
     if st.session_state.area > 0:
-        st.session_state.show_service = True; st.session_state.show_audit = False; st.session_state.show_alert = False
-        if st.session_state.svc_stage == "idle": st.session_state.svc_stage = "scanning"
-    else: st.session_state.show_alert = True; st.session_state.show_audit = False
+        if st.session_state.show_service:
+            st.session_state.show_service = False
+            st.session_state.svc_stage = "idle"
+        else:
+            st.session_state.show_service = True
+            st.session_state.show_audit = False
+            st.session_state.show_alert = False
+            st.session_state.svc_stage = "scanning"
+    else:
+        st.session_state.show_alert = True
+        st.session_state.show_audit = False
 
 def close_all_popups():
     st.session_state.show_audit = False; st.session_state.show_service = False; st.session_state.svc_stage = "idle"
@@ -69,7 +84,8 @@ t = {
         "export_a": "Annual Export Credits", "export_m": "Monthly Export Credits", "total_a": "Total Annual Benefit", "total_m": "Total Monthly Benefit",
         "service_title": "SERVICE DISPATCH", "scanning": "Pinging Local Grid...", "request": "SEND REQUEST",
         "receipt_title": "PROJECT SUMMARY", "confirm": "Confirm & Submit", "cancel": "Cancel", "selected": "Selected Contractor",
-        "success": "DISPATCH SUCCESSFUL", "success_sub": "A technician from your selected contractor will contact you shortly."
+        "success": "DISPATCH SUCCESSFUL", "success_sub": "A technician from your selected contractor will contact you shortly.",
+        "finalizing": "Finalizing Dispatch..."
     },
     "ar": {
         "btn_lang": "English", "title_top": "الرياض", "title_bot": "للذكاء الشمسي", "load": "حجم المبنى", "maint": "استراتيجية الصيانة",
@@ -81,13 +97,31 @@ t = {
         "export_a": "أرباح التصدير السنوية", "export_m": "أرباح التصدير الشهرية", "total_a": "إجمالي العائد السنوي", "total_m": "إجمالي العائد الشهري",
         "service_title": "مركز الخدمة", "scanning": "جاري البحث عن مقاولين...", "request": "إرسال طلب",
         "receipt_title": "ملخص المشروع", "confirm": "تأكيد وإرسال الطلب", "cancel": "إلغاء", "selected": "المقاول المختار",
-        "success": "تم إرسال الطلب بنجاح", "success_sub": "سيتواصل معك فني متخصص قريباً."
+        "success": "تم إرسال الطلب بنجاح", "success_sub": "سيتواصل معك فني متخصص قريباً.",
+        "finalizing": "جاري تأكيد الإرسال..."
     }
 }
 loc = t[st.session_state.lang]
 
+def calculate_area(pts):
+    if len(pts) < 3: return 0
+    lats = np.array([p[0] for p in pts]) * 111111
+    lngs = np.array([p[1] for p in pts]) * 111111 * np.cos(np.radians(24.7))
+    return 0.5 * np.abs(np.dot(lats, np.roll(lngs, 1)) - np.dot(lngs, np.roll(lats, 1)))
+
 # ==========================================
-# 3. TYPOGRAPHY ENGINE
+# 3. EARLY STATE PROCESSING
+# ==========================================
+if "main_map" in st.session_state and st.session_state.main_map and st.session_state.main_map.get("last_clicked"):
+    new_p = (st.session_state.main_map["last_clicked"]["lat"], st.session_state.main_map["last_clicked"]["lng"])
+    if st.session_state.last_click != new_p:  
+        st.session_state.last_click = new_p  
+        st.session_state.points.append(new_p)
+
+st.session_state.area = calculate_area(st.session_state.points)
+
+# ==========================================
+# 4. TYPOGRAPHY ENGINE (WITH HIJACKED NATIVE LOGO)
 # ==========================================
 is_ar = st.session_state.lang == "ar"
 
@@ -99,6 +133,18 @@ css_vars = f"""
         --f-hud-lbl: {'0.85rem' if is_ar else '0.7rem'};
         --f-hud-val: {'1.5rem' if is_ar else '1.3rem'};
         --f-hud-val-dark: {'1.6rem' if is_ar else '1.4rem'};
+    }}
+   
+    /* THE ULTIMATE ANTI-FLASH LOGO: Injected directly into the immortal React node! */
+    [data-testid="stHeader"]::before {{
+        content: "{loc['title_top']}";
+        position: absolute; right: 40px; top: 18px;
+        color: #D4AF37 !important; font-family: 'Times New Roman', serif !important; font-weight: 300 !important; letter-spacing: 6px !important; font-size: 2.2rem !important; line-height: 1 !important; pointer-events: none;
+    }}
+    [data-testid="stHeader"]::after {{
+        content: "{loc['title_bot']}";
+        position: absolute; right: 40px; top: 52px;
+        color: #FFFFFF !important; font-family: 'Times New Roman', serif !important; font-weight: 300 !important; letter-spacing: 4px !important; font-size: 1.4rem !important; line-height: 1 !important; pointer-events: none;
     }}
 </style>
 """
@@ -114,17 +160,20 @@ f_card_dsc = "0.85rem" if is_ar else "0.75rem"
 f_succ_tit = "2.2rem" if is_ar else "1.8rem"
 f_succ_sub = "1.2rem" if is_ar else "1rem"
 
-def calculate_area(pts):
-    if len(pts) < 3: return 0
-    lats = np.array([p[0] for p in pts]) * 111111
-    lngs = np.array([p[1] for p in pts]) * 111111 * np.cos(np.radians(24.7))
-    return 0.5 * np.abs(np.dot(lats, np.roll(lngs, 1)) - np.dot(lngs, np.roll(lats, 1)))
 
 # ==========================================
-# 4. GLOBAL BASE CSS (Locked)
+# 5. GLOBAL BASE CSS
 # ==========================================
 st.markdown("""
 <style>
+    /* SCROLLBAR & RERUN INDICATOR KILLER */
+    ::-webkit-scrollbar { width: 0px !important; background: transparent !important; display: none !important; }
+    html, body, [data-testid="stAppViewContainer"], .block-container { overflow: hidden !important; max-height: 100vh !important; }
+   
+    [data-testid="stStatusWidget"], [data-testid="stDecoration"] {
+        display: none !important; visibility: hidden !important; opacity: 0 !important; height: 0 !important;
+    }
+
     :root { color-scheme: dark; }
     body, .stApp, [data-testid="stAppViewContainer"] { background-color: #0A0A0A !important; color: white !important; }
     .block-container { padding: 0 !important; max-width: 100% !important; overflow: hidden; }
@@ -134,32 +183,43 @@ st.markdown("""
     .stButton > button { outline: none !important; }
     .stButton > button:focus { outline: none !important; box-shadow: none !important; color: inherit !important; }
 
-    .solid-header { position: fixed; top: 0; left: 0; right: 0; height: 90px; background-color: #0A0A0A !important; border-bottom: 2px solid #D4AF37; z-index: 999; display: flex; justify-content: flex-end; align-items: center; padding-right: 40px; box-shadow: 0px 4px 15px rgba(0,0,0,0.9); pointer-events: none; }
-    .logo-container { pointer-events: auto; text-align: right; }
-    .logo-top { color: #D4AF37 !important; font-family: 'Times New Roman', serif !important; font-weight: 300 !important; letter-spacing: 6px !important; font-size: 2.2rem !important; margin: 0 0 -4px 0 !important; line-height: 1 !important; }
-    .logo-bottom { color: #FFFFFF !important; font-family: 'Times New Roman', serif !important; font-weight: 300 !important; letter-spacing: 4px !important; font-size: 1.4rem !important; margin: 0 !important; line-height: 1 !important; }
+    /* THE FIX: Hijack Streamlit's Indestructible Native Header */
+    [data-testid="stHeader"] {
+        background-color: #0A0A0A !important;
+        border-bottom: 2px solid #D4AF37 !important;
+        height: 90px !important;
+        position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important;
+        z-index: 999 !important;
+    }
+    /* Hide Streamlit's default top-right menu */
+    [data-testid="stHeader"] > div { display: none !important; }
 
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) {
-        position: fixed !important; top: 22px !important; left: 30px !important; right: 0px !important; padding-right: 280px !important; z-index: 99999 !important; pointer-events: none !important;
+    /* =========================================================
+       REVERTED: THE SAFE, PRECISE WRAPPER ID SHIELD
+       ========================================================= */
+    div[data-testid="stVerticalBlock"]:has(> div.element-container span#header-nav-wrapper) {
+        position: fixed !important; top: 12px !important; left: 30px !important; right: 0px !important; padding-right: 280px !important; z-index: 99999 !important; pointer-events: none !important;
+        opacity: 1 !important; transform: translateZ(0) !important; backface-visibility: hidden !important; will-change: transform !important;
     }
    
-    span#header-nav-id { display: none !important; }
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button { pointer-events: auto !important; }
+    span#header-nav-wrapper { display: none !important; }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container span#header-nav-wrapper) button { pointer-events: auto !important; }
    
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"] {
+    div[data-testid="stVerticalBlock"]:has(> div.element-container span#header-nav-wrapper) button[kind="secondary"] {
         background: transparent !important; color: white !important; border: none !important; box-shadow: none !important; font-weight: bold !important; font-size: var(--f-btn) !important; height: 45px !important; margin: 0 !important; padding: 0 15px !important; width: 100% !important; transition: 0.2s !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: center !important; outline: none !important; white-space: nowrap !important; gap: 8px !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"] p { margin: 0 !important; line-height: 1 !important; color: white !important; white-space: nowrap !important; display: inline-block !important; }
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) button[kind="secondary"]:hover { color: #D4AF37 !important; text-shadow: 0 0 10px rgba(212,175,55,0.6); transform: translateY(-2px); }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container span#header-nav-wrapper) button[kind="secondary"] p { margin: 0 !important; line-height: 1 !important; color: white !important; white-space: nowrap !important; display: inline-block !important; }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container span#header-nav-wrapper) button[kind="secondary"]:hover { color: #D4AF37 !important; text-shadow: 0 0 10px rgba(212,175,55,0.6); transform: translateY(-2px); }
    
-    div[data-testid="stHorizontalBlock"]:has(span#header-nav-id) div[data-testid="column"]:nth-child(1) button[kind="secondary"] {
+    div[data-testid="stVerticalBlock"]:has(> div.element-container span#header-nav-wrapper) div[data-testid="column"]:nth-child(1) button[kind="secondary"] {
         background: rgba(10,10,10,0.5) !important; color: #D4AF37 !important; border: 2px solid #D4AF37 !important; border-radius: 12px !important; padding: 0 20px !important; width: 100% !important;
     }
 
-    [data-testid="stSidebar"], [data-testid="collapsedControl"], header[data-testid="stHeader"] { display: none !important; }
+    [data-testid="stSidebar"], [data-testid="collapsedControl"] { display: none !important; }
 
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#floating-controls) {
         position: fixed !important; top: 110px !important; left: 30px !important; width: 280px !important; z-index: 99999 !important; background: transparent !important; padding: 0 !important; pointer-events: none !important;
+        opacity: 1 !important; transform: translateZ(0) !important; backface-visibility: hidden !important; will-change: transform !important;
     }
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#floating-controls) .stSelectbox,
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#floating-controls) button {
@@ -190,34 +250,36 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # ==========================================
-# 5. PAGE ARCHITECTURE
+# 6. PAGE ARCHITECTURE
 # ==========================================
 
-nav_cols = st.columns([1.5, 1.5, 2.0, 1.5, 1.5, 1.5])
-nav_cols[0].markdown("<span id='header-nav-id'></span>", unsafe_allow_html=True)
-nav_cols[0].button(loc["btn_lang"], on_click=toggle_language, type="secondary", use_container_width=True)
-view_label = loc['monthly'] if st.session_state.time_view == 'Annual' else loc['annual']
-nav_cols[1].button(f"🔄 {view_label}", on_click=toggle_time, type="secondary", use_container_width=True)
-nav_cols[3].button(f"🛠️ {loc['service']}", on_click=open_service, type="secondary", use_container_width=True)
-nav_cols[4].button(f"📊 {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True)
-nav_cols[5].button(f"🏠 {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True)
+# THE REVERT: Back to the incredibly safe `span#header-nav-wrapper` ID structure.
+with st.container():
+    st.markdown("<span id='header-nav-wrapper'></span>", unsafe_allow_html=True)
+    nav_cols = st.columns([1.5, 1.5, 2.0, 1.5, 1.5, 1.5])
+   
+    nav_cols[0].button(loc["btn_lang"], on_click=toggle_language, type="secondary", use_container_width=True, key="h_lang")
+    view_label = loc['monthly'] if st.session_state.time_view == 'Annual' else loc['annual']
+    nav_cols[1].button(f"🔄 {view_label}", on_click=toggle_time, type="secondary", use_container_width=True, key="h_time")
+    nav_cols[3].button(f"🛠️ {loc['service']}", on_click=open_service, type="secondary", use_container_width=True, key="h_srv")
+    nav_cols[4].button(f"📊 {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True, key="h_aud")
+    nav_cols[5].button(f"🏠 {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True, key="h_ovv")
 
 with st.container():
     st.markdown("<div id='floating-controls'></div>", unsafe_allow_html=True)
-    load_choice = st.selectbox(loc["load"], loc["opt_loads"])
-    maint_val = st.selectbox(loc["maint"], loc["opt_maint"])
+    load_choice = st.selectbox(loc["load"], loc["opt_loads"], key="f_load")
+    maint_val = st.selectbox(loc["maint"], loc["opt_maint"], key="f_maint")
     m_multiplier = {"Weekly (Elite)": 0.95, "Monthly (Standard)": 0.75, "Lazy Owner": 0.60, "أسبوعي (ممتاز)": 0.95, "شهري (قياسي)": 0.75, "بدون صيانة": 0.60}[maint_val]
-    panel_w = st.selectbox(loc["tech"], [350, 450, 550, 650], index=1)
-    st.button(loc["reset"], on_click=reset_view, type="primary", use_container_width=True)
-
-st.markdown(f'<div class="solid-header"><div class="logo-container"><div class="logo-top">{loc["title_top"]}</div><div class="logo-bottom">{loc["title_bot"]}</div></div></div>', unsafe_allow_html=True)
+    panel_w = st.selectbox(loc["tech"], [350, 450, 550, 650], index=1, key="f_tech")
+    st.button(loc["reset"], on_click=reset_view, type="primary", use_container_width=True, key="f_reset")
 
 if st.session_state.show_alert:
     st.markdown(f'<div class="smart-alert">{loc["alert"]}</div>', unsafe_allow_html=True)
 
 # ==========================================
-# 6. THE MAP ENGINE
+# 7. THE MAP ENGINE (ZERO-LAG IN-PLACE UPDATES)
 # ==========================================
 
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom, tiles='https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', attr='Google', zoom_control=True, max_zoom=22)
@@ -238,14 +300,6 @@ map_data = st_folium(
     feature_group_to_add=fg,
     returned_objects=["last_clicked"]
 )
-
-if map_data and map_data.get("last_clicked"):
-    new_p = (map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"])
-    if st.session_state.last_click != new_p:  
-        st.session_state.last_click = new_p  
-        st.session_state.points.append(new_p)
-        st.session_state.area = calculate_area(st.session_state.points)
-        st.rerun()
 
 if st.session_state.area > 0:
     area = st.session_state.area
@@ -283,7 +337,7 @@ if st.session_state.area > 0:
 
 
 # ==========================================
-# 7. MODAL ENGINE CSS (Locked)
+# 8. MODAL ENGINE CSS
 # ==========================================
 modal_css = """
 <style>
@@ -291,6 +345,7 @@ modal_css = """
         position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important;
         width: 480px !important; max-width: 90vw !important; background: rgba(15, 15, 15, 0.98) !important; border: 2px solid #D4AF37 !important;
         border-radius: 20px !important; padding: 40px 30px !important; z-index: 9999999 !important; box-shadow: 0px 20px 50px rgba(0,0,0,0.9) !important; max-height: 85vh !important; overflow-y: auto !important;
+        transform: translate(-50%, -50%) translateZ(0) !important; backface-visibility: hidden !important; will-change: transform !important;
     }
 
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) > div.element-container:has(> div.stButton > button[kind="secondary"]) {
@@ -340,7 +395,7 @@ modal_css = """
         background-color: #D4AF37 !important; color: #0A0A0A !important; font-weight: bold !important; font-size: var(--f-pri) !important; border: none !important; border-radius: 12px !important; height: 50px !important; width: 100% !important; box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important; transition: 0.2s !important; display: flex !important; align-items: center !important; justify-content: center !important; outline: none !important; margin: 0 !important;
     }
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) button[kind="primary"] p { color: inherit !important; margin: 0 !important; font-weight: inherit !important; }
-    div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) button[kind="primary"]:hover { background-color: #FFFFFF !important; box-shadow: 0 4px 20px rgba(212,175,55,0.8) !important; transform: translateY(-2px); }
+    div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) button[kind="primary"]:hover { background: #FFFFFF !important; box-shadow: 0 4px 20px rgba(212,175,55,0.8) !important; transform: translateY(-2px); }
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) button[kind="primary"]:active { transform: scale(0.95) !important; box-shadow: 0 0 10px rgba(212, 175, 55, 0.5) !important; }
     div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) button[kind="primary"]:disabled { background-color: #333 !important; color: #777 !important; cursor: not-allowed !important; border: 1px solid #444 !important; box-shadow: none !important; transform: none !important; }
 
@@ -352,7 +407,7 @@ modal_css = """
 """
 
 # ==========================================
-# 8. POPUP MODAL GENERATION
+# 9. POPUP MODAL GENERATION
 # ==========================================
 
 if st.session_state.show_audit and st.session_state.area > 0:
@@ -362,8 +417,6 @@ if st.session_state.show_audit and st.session_state.area > 0:
         st.button("✖", key="aud_x", type="secondary", on_click=close_all_popups)
            
         st.markdown(f"<div style='color: white; font-size: {f_title}; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-top: -10px; padding-right: 40px;'>{loc['audit_title']}</div>", unsafe_allow_html=True)
-       
-        # THE FIX: Added the 'f' right here!
         st.markdown(f"<hr style='border-color: #D4AF37; opacity: 0.3; margin: 15px 0;'><div style='display:flex; justify-content:space-between;'><div><div style='color:#aaa; font-size:{f_lbl};'>{loc['cost']}</div><div style='color:white; font-size:{f_big}; font-weight:bold;'>{install_cost:,.0f} SAR</div></div><div><div style='color:#aaa; font-size:{f_lbl};'>{loc['payback']}</div><div style='color:white; font-size:{f_big}; font-weight:bold;'>{payback:.1f} {loc['years']}</div></div></div>", unsafe_allow_html=True)
 
 if st.session_state.show_service:
@@ -420,7 +473,7 @@ if st.session_state.show_service:
 
             st.write("")
             req_disabled = (st.session_state.selected_contractor == "")
-            if st.button(loc['request'], type="primary", disabled=req_disabled, use_container_width=True):
+            if st.button(loc['request'], type="primary", disabled=req_disabled, use_container_width=True, key="btn_req"):
                 st.session_state.svc_stage = "receipt"
                 st.rerun()
 
@@ -428,22 +481,25 @@ if st.session_state.show_service:
             st.button("✖", key="rec_x", type="secondary", on_click=close_all_popups)
             st.markdown(f"<div style='color: white; font-size: {f_title}; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); text-align: center; margin-top: -10px; margin-bottom: 20px; padding-right: 40px;'>{loc['receipt_title']}</div>", unsafe_allow_html=True)
            
-            rec = f"<div style='background: rgba(255,255,255,0.05); border-radius: 12px; padding: 25px; text-align: left; margin-bottom: 50px; border-left: 4px solid #D4AF37;'><div style='color:#aaa; font-size:{f_lbl};'>{loc['selected']}</div><div style='color:#D4AF37; font-weight:bold; font-size: {f_val}; margin-bottom:15px;'>{st.session_state.selected_contractor}</div><div style='color:#aaa; font-size:{f_lbl};'>{loc['area']}</div><div style='color:white; font-weight:bold; font-size: {f_val}; margin-bottom:10px;'>{area:.1f} m²</div><div style='color:#aaa; font-size:{f_lbl};'>{loc['units']}</div><div style='color:white; font-weight:bold; font-size: {f_val}; margin-bottom:10px;'>{units} ({panel_w}W)</div><div style='color:#aaa; font-size:{f_lbl};'>{loc['cost']}</div><div style='color:#D4AF37; font-size:{f_big}; font-weight:bold;'>{install_cost:,.0f} SAR</div></div>"
+            rec = f"<div style='background: rgba(255,255,255,0.05); border-radius: 12px; padding: 25px; text-align: left; margin-bottom: 20px; border-left: 4px solid #D4AF37;'><div style='color:#aaa; font-size:{f_lbl};'>{loc['selected']}</div><div style='color:#D4AF37; font-weight:bold; font-size: {f_val}; margin-bottom:15px;'>{st.session_state.selected_contractor}</div><div style='color:#aaa; font-size:{f_lbl};'>{loc['area']}</div><div style='color:white; font-weight:bold; font-size: {f_val}; margin-bottom:10px;'>{area:.1f} m²</div><div style='color:#aaa; font-size:{f_lbl};'>{loc['units']}</div><div style='color:white; font-weight:bold; font-size: {f_val}; margin-bottom:10px;'>{units} ({panel_w}W)</div><div style='color:#aaa; font-size:{f_lbl};'>{loc['cost']}</div><div style='color:#D4AF37; font-size:{f_big}; font-weight:bold;'>{install_cost:,.0f} SAR</div></div>"
             st.markdown(rec, unsafe_allow_html=True)
            
             b1, b2 = st.columns(2)
             with b1:
-                if st.button(loc['cancel'], type="secondary", use_container_width=True):
+                if st.button(loc['cancel'], type="secondary", use_container_width=True, key="btn_cancel"):
                     st.session_state.svc_stage = "list"
                     st.rerun()
             with b2:
-                if st.button(loc['confirm'], type="primary", use_container_width=True):
+                if st.button(loc['confirm'], type="primary", use_container_width=True, key="btn_confirm"):
                     st.session_state.svc_stage = "submitting"
                     st.rerun()
 
         elif st.session_state.svc_stage == "submitting":
             st.button("✖", key="sub_x", type="secondary", on_click=close_all_popups)
-            st.markdown(f"<div class='scanner-ring'></div><div style='text-align:center; color:#D4AF37; font-size:{f_val}; font-weight:bold; margin-top:40px;'>Finalizing Dispatch...</div>", unsafe_allow_html=True)
+           
+            # THE FIX: Using the localized dictionary key for translating "Finalizing Dispatch..."
+            st.markdown(f"<div class='scanner-ring'></div><div style='text-align:center; color:#D4AF37; font-size:{f_val}; font-weight:bold; margin-top:40px;'>{loc['finalizing']}</div>", unsafe_allow_html=True)
+           
             time.sleep(1.5); st.session_state.svc_stage = "success"; st.rerun()
 
         elif st.session_state.svc_stage == "success":
