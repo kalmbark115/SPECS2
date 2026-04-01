@@ -4,6 +4,7 @@ import folium
 from streamlit_folium import st_folium
 import numpy as np
 import time
+import os
 
 # ==========================================
 # 1. PAGE CONFIGURATION & THEME
@@ -28,6 +29,7 @@ if "last_click" not in st.session_state: st.session_state.last_click = None
 
 if "show_audit" not in st.session_state: st.session_state.show_audit = False
 if "show_service" not in st.session_state: st.session_state.show_service = False
+if "show_credits" not in st.session_state: st.session_state.show_credits = False
 if "svc_stage" not in st.session_state: st.session_state.svc_stage = "idle"
 if "show_alert" not in st.session_state: st.session_state.show_alert = False
 if "selected_contractor" not in st.session_state: st.session_state.selected_contractor = ""
@@ -43,9 +45,19 @@ def toggle_audit():
             st.session_state.show_audit = True
             st.session_state.show_service = False
             st.session_state.show_alert = False
+            st.session_state.show_credits = False
     else:
         st.session_state.show_alert = True
         st.session_state.show_service = False
+
+def toggle_credits():
+    if st.session_state.show_credits:
+        st.session_state.show_credits = False
+    else:
+        st.session_state.show_credits = True
+        st.session_state.show_audit = False
+        st.session_state.show_service = False
+        st.session_state.show_alert = False
 
 def open_service():
     if st.session_state.area > 0:
@@ -56,13 +68,14 @@ def open_service():
             st.session_state.show_service = True
             st.session_state.show_audit = False
             st.session_state.show_alert = False
+            st.session_state.show_credits = False
             st.session_state.svc_stage = "scanning"
     else:
         st.session_state.show_alert = True
         st.session_state.show_audit = False
 
 def close_all_popups():
-    st.session_state.show_audit = False; st.session_state.show_service = False; st.session_state.svc_stage = "idle"
+    st.session_state.show_audit = False; st.session_state.show_service = False; st.session_state.svc_stage = "idle"; st.session_state.show_credits = False
 
 def reset_view():
     close_all_popups(); st.session_state.show_alert = False; st.session_state.points = []; st.session_state.area = 0
@@ -85,7 +98,8 @@ t = {
         "service_title": "SERVICE DISPATCH", "scanning": "Pinging Local Grid...", "request": "SEND REQUEST",
         "receipt_title": "PROJECT SUMMARY", "confirm": "Confirm & Submit", "cancel": "Cancel", "selected": "Selected Contractor",
         "success": "DISPATCH SUCCESSFUL", "success_sub": "A technician from your selected contractor will contact you shortly.",
-        "finalizing": "Finalizing Dispatch..."
+        "finalizing": "Finalizing Dispatch...",
+        "btn_cred": "👥 Credits", "team": "PROJECT TEAM", "khalid": "Khalid Moh. Almubarak", "albaraa": "Albaraa Moh. Yousef"
     },
     "ar": {
         "btn_lang": "English", "title_top": "الرياض", "title_bot": "للذكاء الشمسي", "load": "حجم المبنى", "maint": "استراتيجية الصيانة",
@@ -98,7 +112,8 @@ t = {
         "service_title": "مركز الخدمة", "scanning": "جاري البحث عن مقاولين...", "request": "إرسال طلب",
         "receipt_title": "ملخص المشروع", "confirm": "تأكيد وإرسال الطلب", "cancel": "إلغاء", "selected": "المقاول المختار",
         "success": "تم إرسال الطلب بنجاح", "success_sub": "سيتواصل معك فني متخصص قريباً.",
-        "finalizing": "جاري تأكيد الإرسال..."
+        "finalizing": "جاري تأكيد الإرسال...",
+        "btn_cred": "👥 فريق العمل", "team": "فريق المشروع", "khalid": "خالد محمد المبارك", "albaraa": "البراء محمد يوسف"
     }
 }
 loc = t[st.session_state.lang]
@@ -252,20 +267,24 @@ st.markdown("""
 
 
 # ==========================================
-# 6. PAGE ARCHITECTURE
+# 6. PAGE ARCHITECTURE (WITH CREDITS BUTTON)
 # ==========================================
 
-# THE REVERT: Back to the incredibly safe `span#header-nav-wrapper` ID structure.
 with st.container():
     st.markdown("<span id='header-nav-wrapper'></span>", unsafe_allow_html=True)
-    nav_cols = st.columns([1.5, 1.5, 2.0, 1.5, 1.5, 1.5])
+    # The Columns have been smoothly expanded to 7 to perfectly fit the new Credits button
+    nav_cols = st.columns([1.5, 1.5, 1.5, 1.0, 1.5, 1.5, 1.5])
    
     nav_cols[0].button(loc["btn_lang"], on_click=toggle_language, type="secondary", use_container_width=True, key="h_lang")
     view_label = loc['monthly'] if st.session_state.time_view == 'Annual' else loc['annual']
     nav_cols[1].button(f"🔄 {view_label}", on_click=toggle_time, type="secondary", use_container_width=True, key="h_time")
-    nav_cols[3].button(f"🛠️ {loc['service']}", on_click=open_service, type="secondary", use_container_width=True, key="h_srv")
-    nav_cols[4].button(f"📊 {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True, key="h_aud")
-    nav_cols[5].button(f"🏠 {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True, key="h_ovv")
+   
+    # THE NEW CREDITS BUTTON
+    nav_cols[2].button(loc["btn_cred"], on_click=toggle_credits, type="secondary", use_container_width=True, key="h_cred")
+   
+    nav_cols[4].button(f"🛠️ {loc['service']}", on_click=open_service, type="secondary", use_container_width=True, key="h_srv")
+    nav_cols[5].button(f"📊 {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True, key="h_aud")
+    nav_cols[6].button(f"🏠 {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True, key="h_ovv")
 
 with st.container():
     st.markdown("<div id='floating-controls'></div>", unsafe_allow_html=True)
@@ -403,6 +422,14 @@ modal_css = """
     @keyframes pulse { 0% { transform: scale(0.6); opacity: 0; } 50% { opacity: 1; } 100% { transform: scale(1.2); opacity: 0; } }
     .checkmark-circle { width: 100px; height: 100px; border: 4px solid #D4AF37; border-radius: 50%; margin: 40px auto 20px auto; display: flex; align-items: center; justify-content: center; animation: scale-in 0.5s ease-out; }
     @keyframes scale-in { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+   
+    /* THE FIX: Circular Profile Pictures for the Credits Modal */
+    div[data-testid="stVerticalBlock"]:has(> div.element-container div#modal-marker) img {
+        border-radius: 50% !important;
+        border: 3px solid #D4AF37 !important;
+        object-fit: cover !important;
+        aspect-ratio: 1 / 1 !important;
+    }
 </style>
 """
 
@@ -410,6 +437,48 @@ modal_css = """
 # 9. POPUP MODAL GENERATION
 # ==========================================
 
+# --- NEW CREDITS MODAL ---
+if st.session_state.show_credits:
+    st.markdown(modal_css, unsafe_allow_html=True)
+    with st.container():
+        st.markdown("<div id='modal-marker'></div>", unsafe_allow_html=True)
+        st.button("✖", key="cred_x", type="secondary", on_click=close_all_popups)
+           
+        st.markdown(f"<div style='color: white; font-size: {f_title}; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-top: -10px; padding-right: 40px; margin-bottom: 20px;'>{loc['team']}</div>", unsafe_allow_html=True)
+       
+        c1, c2 = st.columns([1, 2.5])
+        with c1:
+            if os.path.exists("khalid.png"):
+                st.image("khalid.png", use_container_width=True)
+            else:
+                st.image("https://via.placeholder.com/200/1C2128/D4AF37?text=KM", use_container_width=True)
+        with c2:
+            st.markdown(f"""
+            <div style='display: flex; align-items: center; height: 100%;'>
+                <div style='background: rgba(255,255,255,0.05); border-left: 4px solid #D4AF37; border-radius: 12px; padding: 20px; width: 100%;'>
+                    <div style='color: white; font-size: {f_val}; font-weight: bold;'>{loc['khalid']}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+           
+        st.write("") # Spacing
+       
+        c3, c4 = st.columns([1, 2.5])
+        with c3:
+            if os.path.exists("albaraa.png"):
+                st.image("albaraa.png", use_container_width=True)
+            else:
+                st.image("https://via.placeholder.com/200/1C2128/D4AF37?text=AY", use_container_width=True)
+        with c4:
+            st.markdown(f"""
+            <div style='display: flex; align-items: center; height: 100%;'>
+                <div style='background: rgba(255,255,255,0.05); border-left: 4px solid #D4AF37; border-radius: 12px; padding: 20px; width: 100%;'>
+                    <div style='color: white; font-size: {f_val}; font-weight: bold;'>{loc['albaraa']}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+# --- EXISTING MODALS ---
 if st.session_state.show_audit and st.session_state.area > 0:
     st.markdown(modal_css, unsafe_allow_html=True)
     with st.container():
@@ -497,7 +566,7 @@ if st.session_state.show_service:
         elif st.session_state.svc_stage == "submitting":
             st.button("✖", key="sub_x", type="secondary", on_click=close_all_popups)
            
-            # THE FIX: Using the localized dictionary key for translating "Finalizing Dispatch..."
+            # Using localized translation for finalizing step
             st.markdown(f"<div class='scanner-ring'></div><div style='text-align:center; color:#D4AF37; font-size:{f_val}; font-weight:bold; margin-top:40px;'>{loc['finalizing']}</div>", unsafe_allow_html=True)
            
             time.sleep(1.5); st.session_state.svc_stage = "success"; st.rerun()
