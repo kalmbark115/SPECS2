@@ -10,7 +10,7 @@ import os
 # 1. PAGE CONFIGURATION & THEME
 # ==========================================
 st.set_page_config(
-    page_title="Riyadh Solar Intelligence",
+    page_title="Riyadh Solar",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -88,32 +88,32 @@ def haversine(lat1, lon1, lat2, lon2):
 
 t = {
     "en": {
-        "btn_lang": "تغيير اللغة", "title_top": "RIYADH", "title_bot": "SOLAR AI", "load": "Building Scale Profile",
+        "btn_lang": "تغيير اللغة", "title_top": "RIYADH", "title_bot": "SOLAR", "load": "Building Scale Profile",
         "maint": "Maintenance Strategy", "tech": "Solar Panel Tech (W)", "reset": "RESET MAP BOUNDARY", "area": "Rooftop Area",
         "units": "Panel Units", "opt_loads": ["Small Villa", "Standard Villa", "Large Estate", "Palace"], "opt_maint": ["Weekly (Elite)", "Monthly (Standard)", "Lazy Owner"],
         "annual": "Annual", "monthly": "Monthly", "overview": "Overview", "audit": "Investment Audit", "service": "Book Service",
-        "alert": "⚠️ Please select a roof area on the map first!", "audit_title": "FINANCIAL AUDIT", "cost": "Estimated Install Cost",
+        "alert": " Please select a roof area on the map first!", "audit_title": "FINANCIAL AUDIT", "cost": "Estimated Install Cost",
         "payback": "Payback Period", "years": "Years", "direct_a": "Annual Direct Savings", "direct_m": "Monthly Direct Savings",
         "export_a": "Annual Export Credits", "export_m": "Monthly Export Credits", "total_a": "Total Annual Benefit", "total_m": "Total Monthly Benefit",
         "service_title": "SERVICE DISPATCH", "scanning": "Pinging Local Grid...", "request": "SEND REQUEST",
         "receipt_title": "PROJECT SUMMARY", "confirm": "Confirm & Submit", "cancel": "Cancel", "selected": "Selected Contractor",
         "success": "DISPATCH SUCCESSFUL", "success_sub": "A technician from your selected contractor will contact you shortly.",
         "finalizing": "Finalizing Dispatch...",
-        "btn_cred": "👥 Credits", "team": "PROJECT TEAM", "khalid": "Khalid Moh. Almubarak", "albaraa": "Albaraa Moh. Yousef"
+        "btn_cred": " Credits", "team": "PROJECT TEAM", "khalid": "Khalid Moh. Almubarak", "albaraa": "Albaraa Moh. Yousef"
     },
     "ar": {
-        "btn_lang": "English", "title_top": "الرياض", "title_bot": "للذكاء الشمسي", "load": "حجم المبنى", "maint": "استراتيجية الصيانة",
+        "btn_lang": "English", "title_top": "رياض", "title_bot": "سولار", "load": "حجم المبنى", "maint": "استراتيجية الصيانة",
         "tech": "قدرة اللوح الشمسي (واط)", "reset": "إعادة تعيين الخريطة", "area": "مساحة السطح", "units": "عدد الألواح",
         "opt_loads": ["فيلا صغيرة", "فيلا قياسية", "قصر صغير", "قصر كبير"], "opt_maint": ["أسبوعي (ممتاز)", "شهري (قياسي)", "بدون صيانة"],
         "annual": "سنوي", "monthly": "شهري", "overview": "المخطط العام", "audit": "التدقيق الاستثماري", "service": "حجز الخدمة",
-        "alert": "⚠️ الرجاء تحديد مساحة السطح على الخريطة أولاً!", "audit_title": "التقرير المالي", "cost": "التكلفة التقديرية للتركيب",
+        "alert": " الرجاء تحديد مساحة السطح على الخريطة أولاً!", "audit_title": "التقرير المالي", "cost": "التكلفة التقديرية للتركيب",
         "payback": "فترة الاسترداد", "years": "سنوات", "direct_a": "التوفير المباشر السنوي", "direct_m": "التوفير المباشر الشهري",
         "export_a": "أرباح التصدير السنوية", "export_m": "أرباح التصدير الشهرية", "total_a": "إجمالي العائد السنوي", "total_m": "إجمالي العائد الشهري",
         "service_title": "مركز الخدمة", "scanning": "جاري البحث عن مقاولين...", "request": "إرسال طلب",
         "receipt_title": "ملخص المشروع", "confirm": "تأكيد وإرسال الطلب", "cancel": "إلغاء", "selected": "المقاول المختار",
         "success": "تم إرسال الطلب بنجاح", "success_sub": "سيتواصل معك فني متخصص قريباً.",
         "finalizing": "جاري تأكيد الإرسال...",
-        "btn_cred": "👥 فريق العمل", "team": "فريق المشروع", "khalid": "خالد محمد المبارك", "albaraa": "البراء محمد يوسف"
+        "btn_cred": " فريق العمل", "team": "فريق المشروع", "khalid": "خالد محمد المبارك", "albaraa": "البراء محمد يوسف"
     }
 }
 loc = t[st.session_state.lang]
@@ -277,14 +277,14 @@ with st.container():
    
     nav_cols[0].button(loc["btn_lang"], on_click=toggle_language, type="secondary", use_container_width=True, key="h_lang")
     view_label = loc['monthly'] if st.session_state.time_view == 'Annual' else loc['annual']
-    nav_cols[1].button(f"🔄 {view_label}", on_click=toggle_time, type="secondary", use_container_width=True, key="h_time")
+    nav_cols[1].button(f" {view_label}", on_click=toggle_time, type="secondary", use_container_width=True, key="h_time")
    
     # THE NEW CREDITS BUTTON
     nav_cols[2].button(loc["btn_cred"], on_click=toggle_credits, type="secondary", use_container_width=True, key="h_cred")
    
-    nav_cols[4].button(f"🛠️ {loc['service']}", on_click=open_service, type="secondary", use_container_width=True, key="h_srv")
-    nav_cols[5].button(f"📊 {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True, key="h_aud")
-    nav_cols[6].button(f"🏠 {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True, key="h_ovv")
+    nav_cols[4].button(f" {loc['service']}", on_click=open_service, type="secondary", use_container_width=True, key="h_srv")
+    nav_cols[5].button(f" {loc['audit']}", on_click=toggle_audit, type="secondary", use_container_width=True, key="h_aud")
+    nav_cols[6].button(f" {loc['overview']}", on_click=reset_view, type="secondary", use_container_width=True, key="h_ovv")
 
 with st.container():
     st.markdown("<div id='floating-controls'></div>", unsafe_allow_html=True)
@@ -512,9 +512,9 @@ if st.session_state.show_service:
             d_alfanar = haversine(my_lat, my_lon, 24.75, 46.75)
 
             contractors = [
-                ("ACWA Power Solar", "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=150&h=150&fit=crop", "⭐⭐⭐⭐⭐ 4.9", "🏆 Tier 1 Govt Partner", d_acwa),
-                ("Desert Technologies", "https://images.unsplash.com/photo-1521618755572-156ae0cdd74d?w=150&h=150&fit=crop", "⭐⭐⭐⭐⭐ 4.8", "🇸🇦 Saudi Made Panels", d_desert),
-                ("Alfanar Energy", "https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=150&h=150&fit=crop", "⭐⭐⭐⭐✨ 4.7", "⚡ Smart Grid Integration", d_alfanar)
+                ("ACWA Power Solar", "https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=150&h=150&fit=crop", " 4.9", " Tier 1 Govt Partner", d_acwa),
+                ("Desert Technologies", "https://images.unsplash.com/photo-1521618755572-156ae0cdd74d?w=150&h=150&fit=crop", " 4.8", " Saudi Made Panels", d_desert),
+                ("Alfanar Energy", "https://images.unsplash.com/photo-1497440001374-f26997328c1b?w=150&h=150&fit=crop", " 4.7", " Smart Grid Integration", d_alfanar)
             ]
            
             for name, img, stars, desc, dist in contractors:
